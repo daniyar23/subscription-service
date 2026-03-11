@@ -1,4 +1,4 @@
-# subscribe-service
+# subscription-service
 test service ( Effective Mobile )
 
 # Subscription Service API
