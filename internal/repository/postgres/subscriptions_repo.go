@@ -3,6 +3,7 @@ package postgres
 import (
 	"context"
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/daniyar23/subscribe-service/internal/model"
@@ -19,6 +20,9 @@ func NewSubscriptionRepo(db *pgxpool.Pool) *SubscriptionRepository {
 }
 
 func (r *SubscriptionRepository) Create(ctx context.Context, sub model.Subscription) (*model.Subscription, error) {
+
+	log.Println("repo: create subscription", sub.UserID, sub.ServiceName)
+
 	query := `
 	INSERT INTO subscriptions
 	(service_name, price, user_id, start_date, end_date)
@@ -37,6 +41,7 @@ func (r *SubscriptionRepository) Create(ctx context.Context, sub model.Subscript
 	).Scan(&sub.ID)
 
 	if err != nil {
+		log.Println("repo: create subscription error:", err)
 		return nil, fmt.Errorf("Create repo error: %w", err)
 	}
 
@@ -44,6 +49,9 @@ func (r *SubscriptionRepository) Create(ctx context.Context, sub model.Subscript
 }
 
 func (r *SubscriptionRepository) GetByID(ctx context.Context, id uuid.UUID) (*model.Subscription, error) {
+
+	log.Println("repo: get subscription by id", id)
+
 	query := `
 	SELECT id, service_name, price, user_id, start_date, end_date
 	FROM subscriptions
@@ -63,6 +71,7 @@ func (r *SubscriptionRepository) GetByID(ctx context.Context, id uuid.UUID) (*mo
 		)
 
 	if err != nil {
+		log.Println("repo: get by id error:", err)
 		return nil, fmt.Errorf("GetByID repo error: %w", err)
 	}
 
@@ -70,6 +79,9 @@ func (r *SubscriptionRepository) GetByID(ctx context.Context, id uuid.UUID) (*mo
 }
 
 func (r *SubscriptionRepository) GetByUserID(ctx context.Context, userID uuid.UUID) ([]model.Subscription, error) {
+
+	log.Println("repo: get subscriptions by user", userID)
+
 	query := `
 	SELECT id, service_name, price, user_id, start_date, end_date
 	FROM subscriptions
@@ -78,6 +90,7 @@ func (r *SubscriptionRepository) GetByUserID(ctx context.Context, userID uuid.UU
 
 	rows, err := r.db.Query(ctx, query, userID)
 	if err != nil {
+		log.Println("repo: get by user id error:", err)
 		return nil, fmt.Errorf("GetByUserID repo error: %w", err)
 	}
 	defer rows.Close()
@@ -97,6 +110,7 @@ func (r *SubscriptionRepository) GetByUserID(ctx context.Context, userID uuid.UU
 		)
 
 		if err != nil {
+			log.Println("repo: scan error:", err)
 			return nil, err
 		}
 
@@ -107,6 +121,9 @@ func (r *SubscriptionRepository) GetByUserID(ctx context.Context, userID uuid.UU
 }
 
 func (r *SubscriptionRepository) GetAll(ctx context.Context) ([]model.Subscription, error) {
+
+	log.Println("repo: get all subscriptions")
+
 	query := `
 	SELECT id, service_name, price, user_id, start_date, end_date
 	FROM subscriptions
@@ -114,6 +131,7 @@ func (r *SubscriptionRepository) GetAll(ctx context.Context) ([]model.Subscripti
 
 	rows, err := r.db.Query(ctx, query)
 	if err != nil {
+		log.Println("repo: get all error:", err)
 		return nil, fmt.Errorf("GetAll repo error: %w", err)
 	}
 	defer rows.Close()
@@ -133,6 +151,7 @@ func (r *SubscriptionRepository) GetAll(ctx context.Context) ([]model.Subscripti
 		)
 
 		if err != nil {
+			log.Println("repo: scan error:", err)
 			return nil, err
 		}
 
@@ -141,7 +160,11 @@ func (r *SubscriptionRepository) GetAll(ctx context.Context) ([]model.Subscripti
 
 	return subs, nil
 }
+
 func (r *SubscriptionRepository) Update(ctx context.Context, sub model.Subscription) error {
+
+	log.Println("repo: update subscription", sub.ID)
+
 	query := `
 	UPDATE subscriptions
 	SET service_name = $1,
@@ -165,6 +188,7 @@ func (r *SubscriptionRepository) Update(ctx context.Context, sub model.Subscript
 	)
 
 	if err != nil {
+		log.Println("repo: update error:", err)
 		return fmt.Errorf("Update repo error: %w", err)
 	}
 
@@ -172,6 +196,9 @@ func (r *SubscriptionRepository) Update(ctx context.Context, sub model.Subscript
 }
 
 func (r *SubscriptionRepository) Delete(ctx context.Context, id uuid.UUID) error {
+
+	log.Println("repo: delete subscription", id)
+
 	query := `
 	DELETE FROM subscriptions
 	WHERE id = $1
@@ -179,6 +206,7 @@ func (r *SubscriptionRepository) Delete(ctx context.Context, id uuid.UUID) error
 
 	_, err := r.db.Exec(ctx, query, id)
 	if err != nil {
+		log.Println("repo: delete error:", err)
 		return fmt.Errorf("Delete repo error: %w", err)
 	}
 
@@ -192,6 +220,8 @@ func (r *SubscriptionRepository) SumByFilter(
 	from time.Time,
 	to time.Time,
 ) (int, error) {
+
+	log.Println("repo: sum by filter", userID, serviceName)
 
 	query := `
 	SELECT COALESCE(SUM(price),0)
@@ -214,6 +244,7 @@ func (r *SubscriptionRepository) SumByFilter(
 	).Scan(&sum)
 
 	if err != nil {
+		log.Println("repo: sum query error:", err)
 		return 0, err
 	}
 
