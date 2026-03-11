@@ -1,0 +1,306 @@
+openapi: 3.1.0
+info:
+  title: Subscription Service API
+  description: API для управления подписками пользователя. Поддерживает CRUD операции и суммарные фильтры.
+  version: "1.0.0"
+servers:
+  - url: http://localhost:8080/api/v1
+    description: Локальный сервер разработки
+
+paths:
+  /subscriptions:
+    post:
+      summary: Создать подписку
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SubscriptionInput"
+            example:
+              service_name: "kino"
+              price: 330
+              user_id: "60601fee-2bf1-4721-ae6f-763679a0c5ba"
+              start_date: "08-2025"
+      responses:
+        "201":
+          description: Подписка успешно создана
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Subscription"
+        "400":
+          description: Ошибка валидации данных
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Внутренняя ошибка сервера
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+    get:
+      summary: Получить все подписки
+      responses:
+        "200":
+          description: Список всех подписок
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Subscription"
+        "500":
+          description: Внутренняя ошибка сервера
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /subscriptions/{id}:
+    get:
+      summary: Получить подписку по ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: UUID подписки
+      responses:
+        "200":
+          description: Подписка найдена
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Subscription"
+        "400":
+          description: Некорректный UUID
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Внутренняя ошибка сервера
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+    put:
+      summary: Обновить подписку
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: UUID подписки
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SubscriptionInput"
+      responses:
+        "200":
+          description: Подписка успешно обновлена
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: updated
+        "400":
+          description: Ошибка валидации
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Внутренняя ошибка сервера
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+    delete:
+      summary: Удалить подписку
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Подписка успешно удалена
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: deleted
+        "400":
+          description: Некорректный UUID
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Внутренняя ошибка сервера
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /subscriptions/user/{user_id}:
+    get:
+      summary: Получить все подписки пользователя
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: UUID пользователя
+      responses:
+        "200":
+          description: Список подписок пользователя
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Subscription"
+        "400":
+          description: Некорректный UUID
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Внутренняя ошибка сервера
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /subscriptions/sum:
+    get:
+      summary: Получить сумму подписок по фильтру
+      parameters:
+        - name: user_id
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: service
+          in: query
+          schema:
+            type: string
+        - name: from
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: to
+          in: query
+          schema:
+            type: string
+            format: date
+      responses:
+        "200":
+          description: Сумма подписок
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  sum:
+                    type: number
+                    example: 990
+        "400":
+          description: Ошибка валидации
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Внутренняя ошибка сервера
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+components:
+  schemas:
+    MonthYear:
+      type: string
+      pattern: "^(0[1-9]|1[0-2])-(\\d{4})$"
+      example: "08-2025"
+
+    Subscription:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        service_name:
+          type: string
+        price:
+          type: integer
+        user_id:
+          type: string
+          format: uuid
+        start_date:
+          $ref: "#/components/schemas/MonthYear"
+        end_date:
+          $ref: "#/components/schemas/MonthYear"
+          nullable: true
+      required:
+        - id
+        - service_name
+        - price
+        - user_id
+        - start_date
+
+    SubscriptionInput:
+      type: object
+      properties:
+        service_name:
+          type: string
+        price:
+          type: integer
+        user_id:
+          type: string
+          format: uuid
+        start_date:
+          $ref: "#/components/schemas/MonthYear"
+        end_date:
+          $ref: "#/components/schemas/MonthYear"
+          nullable: true
+      required:
+        - service_name
+        - price
+        - user_id
+        - start_date
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          example: "invalid uuid"
