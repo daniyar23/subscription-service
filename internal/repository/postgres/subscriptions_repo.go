@@ -3,25 +3,35 @@ package postgres
 import (
 	"context"
 	"fmt"
-	"log"
 	"time"
 
 	"github.com/daniyar23/subscribe-service/internal/model"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"go.uber.org/zap"
 )
 
+// SubscriptionRepository handles database operations for subscriptions.
 type SubscriptionRepository struct {
-	db *pgxpool.Pool
+	db     *pgxpool.Pool
+	logger *zap.Logger
 }
 
-func NewSubscriptionRepo(db *pgxpool.Pool) *SubscriptionRepository {
-	return &SubscriptionRepository{db: db}
+// NewSubscriptionRepo creates a new SubscriptionRepository.
+func NewSubscriptionRepo(db *pgxpool.Pool, logger *zap.Logger) *SubscriptionRepository {
+	return &SubscriptionRepository{
+		db:     db,
+		logger: logger,
+	}
 }
 
+// Create inserts a new subscription into the database.
 func (r *SubscriptionRepository) Create(ctx context.Context, sub model.Subscription) (*model.Subscription, error) {
 
-	log.Println("repo: create subscription", sub.UserID, sub.ServiceName)
+	r.logger.Info("repo: create subscription",
+		zap.String("user_id", sub.UserID.String()),
+		zap.String("service_name", sub.ServiceName),
+	)
 
 	query := `
 	INSERT INTO subscriptions
@@ -41,16 +51,21 @@ func (r *SubscriptionRepository) Create(ctx context.Context, sub model.Subscript
 	).Scan(&sub.ID)
 
 	if err != nil {
-		log.Println("repo: create subscription error:", err)
+		r.logger.Error("repo: create subscription error",
+			zap.Error(err),
+		)
 		return nil, fmt.Errorf("Create repo error: %w", err)
 	}
 
 	return &sub, nil
 }
 
+// GetByID retrieves a subscription by its ID.
 func (r *SubscriptionRepository) GetByID(ctx context.Context, id uuid.UUID) (*model.Subscription, error) {
 
-	log.Println("repo: get subscription by id", id)
+	r.logger.Info("repo: get subscription by id",
+		zap.String("id", id.String()),
+	)
 
 	query := `
 	SELECT id, service_name, price, user_id, start_date, end_date
@@ -71,16 +86,21 @@ func (r *SubscriptionRepository) GetByID(ctx context.Context, id uuid.UUID) (*mo
 		)
 
 	if err != nil {
-		log.Println("repo: get by id error:", err)
+		r.logger.Error("repo: get by id error",
+			zap.Error(err),
+		)
 		return nil, fmt.Errorf("GetByID repo error: %w", err)
 	}
 
 	return &sub, nil
 }
 
+// GetByUserID retrieves all subscriptions for a given user.
 func (r *SubscriptionRepository) GetByUserID(ctx context.Context, userID uuid.UUID) ([]model.Subscription, error) {
 
-	log.Println("repo: get subscriptions by user", userID)
+	r.logger.Info("repo: get subscriptions by user",
+		zap.String("user_id", userID.String()),
+	)
 
 	query := `
 	SELECT id, service_name, price, user_id, start_date, end_date
@@ -90,7 +110,9 @@ func (r *SubscriptionRepository) GetByUserID(ctx context.Context, userID uuid.UU
 
 	rows, err := r.db.Query(ctx, query, userID)
 	if err != nil {
-		log.Println("repo: get by user id error:", err)
+		r.logger.Error("repo: get by user id error",
+			zap.Error(err),
+		)
 		return nil, fmt.Errorf("GetByUserID repo error: %w", err)
 	}
 	defer rows.Close()
@@ -110,7 +132,9 @@ func (r *SubscriptionRepository) GetByUserID(ctx context.Context, userID uuid.UU
 		)
 
 		if err != nil {
-			log.Println("repo: scan error:", err)
+			r.logger.Error("repo: scan error",
+				zap.Error(err),
+			)
 			return nil, err
 		}
 
@@ -120,9 +144,10 @@ func (r *SubscriptionRepository) GetByUserID(ctx context.Context, userID uuid.UU
 	return subs, nil
 }
 
+// GetAll retrieves all subscriptions from the database.
 func (r *SubscriptionRepository) GetAll(ctx context.Context) ([]model.Subscription, error) {
 
-	log.Println("repo: get all subscriptions")
+	r.logger.Info("repo: get all subscriptions")
 
 	query := `
 	SELECT id, service_name, price, user_id, start_date, end_date
@@ -131,7 +156,9 @@ func (r *SubscriptionRepository) GetAll(ctx context.Context) ([]model.Subscripti
 
 	rows, err := r.db.Query(ctx, query)
 	if err != nil {
-		log.Println("repo: get all error:", err)
+		r.logger.Error("repo: get all error",
+			zap.Error(err),
+		)
 		return nil, fmt.Errorf("GetAll repo error: %w", err)
 	}
 	defer rows.Close()
@@ -151,7 +178,9 @@ func (r *SubscriptionRepository) GetAll(ctx context.Context) ([]model.Subscripti
 		)
 
 		if err != nil {
-			log.Println("repo: scan error:", err)
+			r.logger.Error("repo: scan error",
+				zap.Error(err),
+			)
 			return nil, err
 		}
 
@@ -161,9 +190,12 @@ func (r *SubscriptionRepository) GetAll(ctx context.Context) ([]model.Subscripti
 	return subs, nil
 }
 
+// Update updates an existing subscription in the database.
 func (r *SubscriptionRepository) Update(ctx context.Context, sub model.Subscription) error {
 
-	log.Println("repo: update subscription", sub.ID)
+	r.logger.Info("repo: update subscription",
+		zap.String("id", sub.ID.String()),
+	)
 
 	query := `
 	UPDATE subscriptions
@@ -188,16 +220,21 @@ func (r *SubscriptionRepository) Update(ctx context.Context, sub model.Subscript
 	)
 
 	if err != nil {
-		log.Println("repo: update error:", err)
+		r.logger.Error("repo: update error",
+			zap.Error(err),
+		)
 		return fmt.Errorf("Update repo error: %w", err)
 	}
 
 	return nil
 }
 
+// Delete removes a subscription from the database by its ID.
 func (r *SubscriptionRepository) Delete(ctx context.Context, id uuid.UUID) error {
 
-	log.Println("repo: delete subscription", id)
+	r.logger.Info("repo: delete subscription",
+		zap.String("id", id.String()),
+	)
 
 	query := `
 	DELETE FROM subscriptions
@@ -206,13 +243,16 @@ func (r *SubscriptionRepository) Delete(ctx context.Context, id uuid.UUID) error
 
 	_, err := r.db.Exec(ctx, query, id)
 	if err != nil {
-		log.Println("repo: delete error:", err)
+		r.logger.Error("repo: delete error",
+			zap.Error(err),
+		)
 		return fmt.Errorf("Delete repo error: %w", err)
 	}
 
 	return nil
 }
 
+// SumByFilter calculates the sum of subscription prices for a given filter.
 func (r *SubscriptionRepository) SumByFilter(
 	ctx context.Context,
 	userID uuid.UUID,
@@ -221,7 +261,10 @@ func (r *SubscriptionRepository) SumByFilter(
 	to time.Time,
 ) (int, error) {
 
-	log.Println("repo: sum by filter", userID, serviceName)
+	r.logger.Info("repo: sum by filter",
+		zap.String("user_id", userID.String()),
+		zap.String("service_name", serviceName),
+	)
 
 	query := `
 	SELECT COALESCE(SUM(price),0)
@@ -244,7 +287,9 @@ func (r *SubscriptionRepository) SumByFilter(
 	).Scan(&sum)
 
 	if err != nil {
-		log.Println("repo: sum query error:", err)
+		r.logger.Error("repo: sum query error",
+			zap.Error(err),
+		)
 		return 0, err
 	}
 

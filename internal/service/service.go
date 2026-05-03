@@ -3,121 +3,144 @@ package service
 import (
 	"context"
 	"fmt"
-	"log"
 	"time"
+
+	"go.uber.org/zap"
 
 	"github.com/daniyar23/subscribe-service/internal/model"
 	"github.com/google/uuid"
 )
 
+// SubscriptionService provides methods for managing subscriptions.
 type SubscriptionService struct {
-	repo SubscriptionRepository
+	repo   SubscriptionRepository
+	logger *zap.Logger
 }
 
-func NewSubscriptionService(repo SubscriptionRepository) *SubscriptionService {
+// NewSubscriptionService creates a new SubscriptionService with the given repository and logger.
+func NewSubscriptionService(repo SubscriptionRepository, logger *zap.Logger) *SubscriptionService {
 	return &SubscriptionService{
-		repo: repo,
+		repo:   repo,
+		logger: logger,
 	}
 }
 
+// Create creates a new subscription in the database.
 func (s *SubscriptionService) Create(ctx context.Context, sub model.Subscription) (*model.Subscription, error) {
 
-	log.Println("service: create subscription", sub.UserID, sub.ServiceName)
+	s.logger.Info("service: create subscription",
+		zap.String("user_id", sub.UserID.String()),
+		zap.String("service_name", sub.ServiceName),
+	)
 
 	if sub.ServiceName == "" {
-		log.Println("service: create validation error: empty service name")
+		s.logger.Error("service: create validation error: empty service name")
 		return nil, fmt.Errorf("service name required")
 	}
 
 	if sub.Price <= 0 {
-		log.Println("service: create validation error: invalid price")
+		s.logger.Error("service: create validation error: invalid price")
 		return nil, fmt.Errorf("price must be positive")
 	}
 
 	result, err := s.repo.Create(ctx, sub)
 	if err != nil {
-		log.Println("service: repo create error:", err)
+		s.logger.Error("service: repo create error", zap.Error(err))
 		return nil, err
 	}
 
 	return result, nil
 }
 
+// GetByID retrieves a subscription by its ID.
 func (s *SubscriptionService) GetByID(ctx context.Context, id uuid.UUID) (*model.Subscription, error) {
 
-	log.Println("service: get subscription by id", id)
+	s.logger.Info("service: get subscription by id",
+		zap.String("id", id.String()),
+	)
 
 	sub, err := s.repo.GetByID(ctx, id)
 	if err != nil {
-		log.Println("service: repo getByID error:", err)
+		s.logger.Error("service: repo getByID error", zap.Error(err))
 		return nil, err
 	}
 
 	return sub, nil
 }
 
+// GetByUserID retrieves all subscriptions for a given user.
 func (s *SubscriptionService) GetByUserID(ctx context.Context, userID uuid.UUID) ([]model.Subscription, error) {
 
-	log.Println("service: get subscriptions by user", userID)
+	s.logger.Info("service: get subscriptions by user",
+		zap.String("user_id", userID.String()),
+	)
 
 	subs, err := s.repo.GetByUserID(ctx, userID)
 	if err != nil {
-		log.Println("service: repo getByUserID error:", err)
+		s.logger.Error("service: repo getByUserID error", zap.Error(err))
 		return nil, err
 	}
 
 	return subs, nil
 }
 
+// GetAll retrieves all subscriptions from the database.
 func (s *SubscriptionService) GetAll(ctx context.Context) ([]model.Subscription, error) {
 
-	log.Println("service: get all subscriptions")
+	s.logger.Info("service: get all subscriptions")
 
 	subs, err := s.repo.GetAll(ctx)
 	if err != nil {
-		log.Println("service: repo getAll error:", err)
+		s.logger.Error("service: repo getAll error", zap.Error(err))
 		return nil, err
 	}
 
 	return subs, nil
 }
 
+// Update updates an existing subscription in the database.
 func (s *SubscriptionService) Update(ctx context.Context, sub model.Subscription) error {
 
-	log.Println("service: update subscription", sub.ID)
+	s.logger.Info("service: update subscription",
+		zap.String("id", sub.ID.String()),
+	)
 
 	if sub.ID == uuid.Nil {
-		log.Println("service: update validation error: id required")
+		s.logger.Error("service: update validation error: id required")
 		return fmt.Errorf("id required")
 	}
 
 	err := s.repo.Update(ctx, sub)
 	if err != nil {
-		log.Println("service: repo update error:", err)
+		s.logger.Error("service: repo update error", zap.Error(err))
 		return err
 	}
 
 	return nil
 }
 
+// Delete deletes a subscription by its ID.
 func (s *SubscriptionService) Delete(ctx context.Context, id uuid.UUID) error {
 
-	log.Println("service: delete subscription", id)
+	s.logger.Info("service: delete subscription",
+		zap.String("id", id.String()),
+	)
 
 	if id == uuid.Nil {
-		log.Println("service: delete validation error: invalid id")
+		s.logger.Error("service: delete validation error: invalid id")
 		return fmt.Errorf("invalid id")
 	}
 
 	err := s.repo.Delete(ctx, id)
 	if err != nil {
-		log.Println("service: repo delete error:", err)
+		s.logger.Error("service: repo delete error", zap.Error(err))
 		return err
 	}
 
 	return nil
 }
 
+// SumByFilter sums the subscriptions for a given user and service within a time range.
 func (s *SubscriptionService) SumByFilter(
 	ctx context.Context,
 	userID uuid.UUID,
@@ -126,16 +149,19 @@ func (s *SubscriptionService) SumByFilter(
 	to time.Time,
 ) (int, error) {
 
-	log.Println("service: sum subscriptions", userID, serviceName)
+	s.logger.Info("service: sum subscriptions",
+		zap.String("user_id", userID.String()),
+		zap.String("service_name", serviceName),
+	)
 
 	if userID == uuid.Nil {
-		log.Println("service: sum validation error: user id required")
+		s.logger.Error("service: sum validation error: user id required")
 		return 0, fmt.Errorf("user id required")
 	}
 
 	sum, err := s.repo.SumByFilter(ctx, userID, serviceName, from, to)
 	if err != nil {
-		log.Println("service: repo sum error:", err)
+		s.logger.Error("service: repo sum error", zap.Error(err))
 		return 0, err
 	}
 
