@@ -1,8 +1,16 @@
 package main
 
 import (
-	"fmt"
-	"log"
+	"context"
+	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
+
+	"github.com/daniyar23/subscribe-service/internal/logger"
+	"github.com/daniyar23/subscribe-service/internal/middleware"
+	"go.uber.org/zap"
 
 	"github.com/daniyar23/subscribe-service/internal/handler"
 	"github.com/daniyar23/subscribe-service/internal/repository/postgres"
@@ -13,27 +21,63 @@ import (
 )
 
 func main() {
-	// Подгружаем локальные переменные окружения (чтобы не брались системные)
+	// logger zap
+	logg, err := logger.New()
+	if err != nil {
+		panic(err)
+	}
+	defer logg.Sync()
+
+	// env
 	if err := godotenv.Load(); err != nil {
-		log.Println("No .env file found")
+		logg.Warn("no .env file found")
 	}
 
-	//  СОЗДАЕМ ПУЛЛ ПОДЛКЮЧЕНИЙ К БД
+	// DB connect
 	if err := database.ConnectDB(); err != nil {
-		log.Fatalf("Failed to connect: %v", err)
+		logg.Fatal("failed to connect DB", zap.Error(err))
+	}
+	defer database.DisconnectDB()
+
+	// layers
+	repo := postgres.NewSubscriptionRepo(database.Pool, logg)
+	service := service.NewSubscriptionService(repo, logg)
+	h := handler.NewSubscriptionHandler(service, logg)
+
+	// router
+	router := gin.New() //(чтобы самому управлять middleware)
+	router.Use(gin.Recovery())
+	router.Use(middleware.Logger(logg))
+	handler.RegisterRoutes(router, h)
+
+	// server
+	srv := &http.Server{
+		Addr:    ":8080",
+		Handler: router,
 	}
 
-	// ОТКЛАДВАЕМ ОТКЛЮЧЕНИЕ СОЕДИНЕНИЕ К БД
-	defer database.DisconnectDB()
-	fmt.Println("Database connected successfully!")
+	// server start
+	go func() {
+		logg.Info("server started", zap.String("addr", ":8080"))
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			logg.Fatal("listen failed", zap.Error(err))
+		}
+	}()
 
-	// СОЗДАЕМ НАШИ СЛОИ
-	repo := postgres.NewSubscriptionRepo(database.Pool)
-	service := service.NewSubscriptionService(repo)
-	h := handler.NewSubscriptionHandler(service)
+	// graceful shutdown
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	<-quit
 
-	router := gin.Default()
-	handler.RegisterRoutes(router, h)
-	router.Run(":8080")
+	logg.Info("shutting down server...")
 
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	// graceful shutdown
+	if err := srv.Shutdown(ctx); err != nil {
+		logg.Error("server forced to shutdown", zap.Error(err))
+	}
+
+	logg.Info("server exited properly")
 }

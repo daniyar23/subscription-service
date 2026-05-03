@@ -141,16 +141,8 @@ paths:
             type: string
             format: uuid
       responses:
-        "200":
-          description: Подписка успешно удалена
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  status:
-                    type: string
-                    example: deleted
+        "204":
+          description: Нет содержимого
         "400":
           description: Некорректный UUID
           content:

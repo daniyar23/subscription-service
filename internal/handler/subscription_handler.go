@@ -8,6 +8,7 @@ import (
 	"github.com/google/uuid"
 )
 
+// SubscriptionService defines the interface for subscription service operations.
 type SubscriptionService interface {
 	Create(ctx context.Context, sub model.Subscription) (*model.Subscription, error)
 	GetByID(ctx context.Context, id uuid.UUID) (*model.Subscription, error)

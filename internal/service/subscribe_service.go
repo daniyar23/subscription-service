@@ -8,6 +8,7 @@ import (
 	"github.com/google/uuid"
 )
 
+// SubscriptionRepository defines the interface for subscription repository operations.
 type SubscriptionRepository interface {
 	Create(ctx context.Context, sub model.Subscription) (*model.Subscription, error)
 	GetByID(ctx context.Context, id uuid.UUID) (*model.Subscription, error)

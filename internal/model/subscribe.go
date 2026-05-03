@@ -4,6 +4,7 @@ import (
 	"github.com/google/uuid"
 )
 
+// Subscription represents a subscription for a user to a service.
 type Subscription struct {
 	ID          uuid.UUID  `json:"id"`
 	ServiceName string     `json:"service_name"`
